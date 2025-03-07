@@ -40,7 +40,6 @@ server.start()
 .then(()=>{
     console.log('GraphQL server started!!');
     app.use('/graphql', 
-        cors(),
         expressMiddleware(server, {
             context: async ({ req }) => ({ req }),
             cors: {
