@@ -15,49 +15,62 @@ import rater from "./middleware.js/rateLimiting.js";
 const app = express();
 const port = process.env.PORT || 5000;
 
-
+// CORS configuration
 const corsOption = {
     origin: "*",
     credentials: true,
     methods: ["GET", "POST", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
 };
+
+// Apply middleware
 app.use(cors(corsOption));
 app.use(express.json()); 
 app.use(rater);
 
+// Apply routes
 app.use("/shop", juiceRouter);
 app.use("/shop", pizzaRouter);
 app.use("/shop", comboRouter);
 
-
+// Create Apollo Server
 const server = new ApolloServer({ 
     typeDefs, 
     resolvers 
 });
 
-server.start()
-.then(()=>{
-    console.log('GraphQL server started!!');
-    app.use('/graphql', 
-        expressMiddleware(server, {
-            context: async ({ req }) => ({ req }),
-        })
-    )
-}).catch((error)=>{
-    console.error("Error starting GraphQL server:", error)
-    throw new Error(error);
-})
+// Connect to MongoDB
+async function startServer() {
+    try {
+        // Connect to MongoDB
+        await mongoose.connect(process.env.MONGO_URL, {
+            useNewUrlParser: true, 
+            useUnifiedTopology: true, 
+        });
+        console.log("Connected to MongoDB");
+        
+        // Start Apollo Server
+        await server.start();
+        console.log('GraphQL server started!!');
+        
+        // Apply GraphQL middleware
+        app.use('/graphql', 
+            cors(corsOption), // Using the same CORS options for consistency
+            express.json(),
+            expressMiddleware(server, {
+                context: async ({ req }) => ({ req }),
+            })
+        );
+        
+        // Start Express server after everything is set up
+        app.listen(port, () => {
+            console.log(`Express server is running on port ${port}`);
+            console.log(`GraphQL endpoint available at http://localhost:${port}/graphql`);
+        });
+    } catch (error) {
+        console.error("Error starting server:", error);
+        process.exit(1);
+    }
+}
 
-mongoose.connect(process.env.MONGO_URL, {
-    useNewUrlParser: true, 
-    useUnifiedTopology: true, 
-})
-.then(() => console.log("Connected to MongoDB"))
-.catch((err) => console.log("MongoDB connection failed:", err));
-
-app.listen(port,()=>{
-    console.log("express surver is running on", process.env.EXPRESSPORT);
-});
-
-// console.log("apikey",process.env.FOURSQUARE_API_KEY);
+startServer();
