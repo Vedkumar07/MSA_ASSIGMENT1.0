@@ -7,13 +7,14 @@ import juiceRouter from "./routing/juice.js";
 import pizzaRouter from "./routing/pizza.js";
 import comboRouter from "./routing/combo.js";
 import { ApolloServer } from "@apollo/server"; 
-import { startStandaloneServer } from "@apollo/server/standalone";
+import { expressMiddleware } from '@apollo/server/express4';
 import { typeDefs } from "./graphql/schema.js";
 import resolvers from "./graphql/resolvers.js";
 import rater from "./middleware.js/rateLimiting.js";
 
 const app = express();
 const port = process.env.PORT || 5000;
+
 
 const corsOption = {
     origin: "*",
@@ -23,40 +24,47 @@ const corsOption = {
 };
 app.use(cors(corsOption));
 app.use(express.json()); 
-
+app.use(rater);
 
 app.use("/shop", juiceRouter);
 app.use("/shop", pizzaRouter);
 app.use("/shop", comboRouter);
 
 
- const server = new ApolloServer({ typeDefs, resolvers });
+const server = new ApolloServer({ 
+    typeDefs, 
+    resolvers ,
+    cors: {
+        origin: "*",  // Allow all origins
+        credentials: true,
+        methods: ["GET", "POST", "OPTIONS"],
+        allowedHeaders: ["Content-Type", "Authorization"],
+    }
+});
 
- const { url } = await startStandaloneServer(server, {
-     listen: { port },
-     context: async ({ req }) => ({ req }),
-     cors: {
-         origin: "*",  // Allow all origins
-         credentials: true,
-         methods: ["GET", "POST", "OPTIONS"],
-         allowedHeaders: ["Content-Type", "Authorization"],
-     },
- });
+server.start()
+.then(()=>{
+    console.log('GraphQL server started!!');
+    app.use('/graphql', 
+        cors(),
+        expressMiddleware(server, {
+            context: async ({ req }) => ({ req }),
+        })
+    )
+}).catch((error)=>{
+    console.error("Error starting GraphQL server:", error)
+    throw new Error(error);
+})
 
+mongoose.connect(process.env.MONGO_URL, {
+    useNewUrlParser: true, 
+    useUnifiedTopology: true, 
+})
+.then(() => console.log("Connected to MongoDB"))
+.catch((err) => console.log("MongoDB connection failed:", err));
 
- console.log(`GraphQL Server running at ${url}`);
+app.listen(process.env.EXPRESSPORT,()=>{
+    console.log("express surver is running on", process.env.EXPRESSPORT);
+});
 
-async function main() {
-    await mongoose.connect(process.env.MONGO_URL, {
-        useNewUrlParser: true, 
-        useUnifiedTopology: true, 
-    })
-    .then(() => console.log("Connected to MongoDB"))
-    .catch((err) => console.log("MongoDB connection failed:", err));
-    app.listen(process.env.EXPRESSPORT,()=>{
-        console.log("express surver is running ");
-    });
-    console.log("apikey",process.env.FOURSQUARE_API_KEY);
-    app.use(rater);
-}
-main();
+// console.log("apikey",process.env.FOURSQUARE_API_KEY);
