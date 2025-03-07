@@ -33,13 +33,7 @@ app.use("/shop", comboRouter);
 
 const server = new ApolloServer({ 
     typeDefs, 
-    resolvers ,
-    cors: {
-        origin: "*",  // Allow all origins
-        credentials: true,
-        methods: ["GET", "POST", "OPTIONS"],
-        allowedHeaders: ["Content-Type", "Authorization"],
-    }
+    resolvers 
 });
 
 server.start()
@@ -49,6 +43,12 @@ server.start()
         cors(),
         expressMiddleware(server, {
             context: async ({ req }) => ({ req }),
+            cors: {
+              origin: "*",  // Allow all origins
+              credentials: true,
+              methods: ["GET", "POST", "OPTIONS"],
+              allowedHeaders: ["Content-Type", "Authorization"],
+    },
         })
     )
 }).catch((error)=>{
