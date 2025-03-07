@@ -42,12 +42,6 @@ server.start()
     app.use('/graphql', 
         expressMiddleware(server, {
             context: async ({ req }) => ({ req }),
-            cors: {
-              origin: "*",  // Allow all origins
-              credentials: true,
-              methods: ["GET", "POST", "OPTIONS"],
-              allowedHeaders: ["Content-Type", "Authorization"],
-    },
         })
     )
 }).catch((error)=>{
